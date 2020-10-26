@@ -1,4 +1,5 @@
 import json
+from sys import exec_prefix
 from bs4 import BeautifulSoup
 import requests
 import xlwt
@@ -43,7 +44,10 @@ def build():
     worksheet.write(0, 2, label='keyII')
     worksheet.write(0, 3, label='codeI')
     worksheet.write(0, 4, label='codeII')
-    worksheet.write(0, 5, label='score')
+    worksheet.write(0, 5, label='url of req.keyI req.keyII SEER')
+    worksheet.write(0, 6, label="req.keyI req.keyII SEER")
+    worksheet.write(0, 7, label="req.keyI req.keyII")
+    worksheet.write(0, 8, label="req.keyII SEER")
     for titleI in data_dict:
         for titleII in titleI['sub']:
             print(f"[{titleI['key']} {titleII['key']} SEER] 搜索中", end='\r')
@@ -58,47 +62,60 @@ def build():
                 worksheet.write(count, 2, label=res.keyII)
                 worksheet.write(count, 3, label=res.codeI)
                 worksheet.write(count, 4, label=res.codeII)
-                worksheet.write(count, 5, label=res.resList)
-                count += 1
+                worksheet.write(
+                    count, 5, label=f"https://pubmed.ncbi.nlm.nih.gov/?term={res.keyI} {res.keyII} SEER")
+                for i in range(len(res.resList)):
+                    worksheet.write(count, i+6, label=res.resList[i])
                 print(f"[{titleI['key']} {titleII['key']} SEER] 搜索成功")
             else:
                 print(f"[{titleI['key']} {titleII['key']} SEER] 搜索出错")
                 err += 1
+            count = count+1
+            if(count % 3 == 0):
+                try:
+                    workbook.save('搜索结果.xls')
+                    print("中断点：已保存")
+                except Exception as e:
+                    print("文件保存失败，放弃保存中断点")
     print(f"总共 {count} 次搜索，失败 {err} 次")
     workbook.save('搜索结果.xls')
-    with open('webResult.json', 'w', encoding='utf8') as w:
-        json.dump(res_list, w)
 
 
 def fetch(req: SearchResult) -> SearchResult:
-    content = None
-    fileName = None
+    req.resList = []
+    req.search_content = [
+        f"{req.keyI} {req.keyII} SEER",
+        f"{req.keyI} {req.keyII}",
+        f"{req.keyII} SEER",
+    ]
+    for i in req.search_content:
+        print(f"正在搜索 {i}", end="\r")
+        req.resList.append(countOfResult(
+            f"https://pubmed.ncbi.nlm.nih.gov/?term={i}"))
+    return req
+
+
+def countOfResult(url):
     try:
-        req.search_content = f"{req.keyI} {req.keyII} SEER"
-        req.url = f"https://pubmed.ncbi.nlm.nih.gov/?term={req.search_content}"
-        fileName = req.search_content
-        res = requests.get(req.url)
-        content = bytes.decode(res.content, encoding='utf8')
+        res = requests.get(url)
+        # content = bytes.decode(res.content, encoding='utf8')
         soup = BeautifulSoup(res.content)
         contents = soup.find('div', attrs={'class': 'results-amount'})
         if contents == None:
             if soup.find('div', attrs={'class': 'single-result-redirect-message'}):
-                req.resList = 1/2
-                return req
+                return 1
         contents = contents.contents
         if len(contents) == 1:
-            req.resList = 1
-            return req
-        req.resList = 1/(1+int(
-            soup.find('div', attrs={'class': 'results-amount'}).contents[1].string))
-        return req
+            return 0
+        rawInt = soup.find(
+            'div', attrs={'class': 'results-amount'}).contents[1].string
+        strInt = ""
+        for i in rawInt.split(","):
+            strInt += i
+        return int(strInt)
     except Exception as e:
-        with open(f"{fileName}.html", 'w', encoding='utf8') as w:
-            w.write(content)
-        print()
-        print(e)
-        return req
-    return req
+        print(f"访问{url}出错：错误类型{e}")
+        return None
 
 
 if __name__ == '__main__':
