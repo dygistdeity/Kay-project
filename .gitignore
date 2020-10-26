@@ -1,0 +1,8 @@
+.vscode
+*.xls
+*.json
+*.zip
+*.pdf
+*.txt
+*.html
+*.ipynb
