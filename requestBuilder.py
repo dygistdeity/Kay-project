@@ -74,7 +74,7 @@ def build():
             if(count % 3 == 0):
                 try:
                     workbook.save('搜索结果.xls')
-                    print("中断点：已保存")
+                    print("中断点：已保存到文件")
                 except Exception as e:
                     print("文件保存失败，放弃保存中断点")
     print(f"总共 {count} 次搜索，失败 {err} 次")
@@ -103,6 +103,8 @@ def countOfResult(url):
         contents = soup.find('div', attrs={'class': 'results-amount'})
         if contents == None:
             if soup.find('div', attrs={'class': 'single-result-redirect-message'}):
+                return 1
+            if soup.find('div', attrs={'class': 'return-to-search'}):
                 return 1
         contents = contents.contents
         if len(contents) == 1:
